@@ -1,12 +1,7 @@
-import {
-  Outlet,
-  redirect,
-  useLoaderData,
-  useNavigation,
-} from "react-router-dom";
+import { Outlet, redirect, useNavigation } from "react-router-dom";
 import Wrapper from "../assets/wrappers/Dashboard";
 import { SmallSidebar, BigSidebar, Navbar, Loading } from "../components";
-import { createContext, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 import { useContext } from "react";
 import { checkDefaultTheme } from "../App";
 import customFetch from "../utils/customFetch";
@@ -42,6 +37,8 @@ const DashboardLayout = ({ queryClient }) => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isDarkTheme, setIsDarkTheme] = useState(checkDefaultTheme());
 
+  const [isAuthError, setIsAuthError] = useState(false);
+
   const toggleDarkTheme = () => {
     const newDarkTheme = !isDarkTheme;
     setIsDarkTheme(newDarkTheme);
@@ -59,6 +56,23 @@ const DashboardLayout = ({ queryClient }) => {
     queryClient.invalidateQueries();
     toast.success("Logging out...");
   };
+
+  customFetch.interceptors.response.use(
+    (response) => {
+      return response;
+    },
+    (error) => {
+      if (error?.response?.status === 401) {
+        setIsAuthError(true);
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  useEffect(() => {
+    if (!isAuthError) return;
+    logoutUser();
+  }, [isAuthError]);
 
   return (
     <DashboardContext.Provider
