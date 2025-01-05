@@ -1,17 +1,30 @@
-import { Outlet, redirect, useLoaderData } from "react-router-dom";
+import {
+  Outlet,
+  redirect,
+  useLoaderData,
+  useNavigation,
+} from "react-router-dom";
 import Wrapper from "../assets/wrappers/Dashboard";
-import { SmallSidebar, BigSidebar, Navbar } from "../components";
+import { SmallSidebar, BigSidebar, Navbar, Loading } from "../components";
 import { createContext, useState } from "react";
 import { useContext } from "react";
 import { checkDefaultTheme } from "../App";
 import customFetch from "../utils/customFetch";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQuery } from "@tanstack/react-query";
 
-export const loader = async () => {
-  try {
-    const { data } = await customFetch.get("/users/current-user");
+const userQuery = {
+  queryKey: ["user"],
+  queryFn: async () => {
+    const { data } = await customFetch("/users/current-user");
     return data;
+  },
+};
+
+export const loader = (queryClient) => async () => {
+  try {
+    return await queryClient.ensureQueryData(userQuery);
   } catch (error) {
     return redirect("/");
   }
@@ -19,9 +32,13 @@ export const loader = async () => {
 
 const DashboardContext = createContext();
 
-const DashboardLayout = () => {
-  const { user } = useLoaderData();
+const DashboardLayout = ({ queryClient }) => {
+  const { user } = useQuery(userQuery)?.data;
   const navigate = useNavigate();
+
+  const navigation = useNavigation();
+  const isPageLoading = navigation.state === "loading";
+
   const [showSidebar, setShowSidebar] = useState(false);
   const [isDarkTheme, setIsDarkTheme] = useState(checkDefaultTheme());
 
@@ -39,6 +56,7 @@ const DashboardLayout = () => {
   const logoutUser = async () => {
     navigate("/");
     await customFetch.get("/auth/logout");
+    queryClient.invalidateQueries();
     toast.success("Logging out...");
   };
 
@@ -60,7 +78,7 @@ const DashboardLayout = () => {
           <div>
             <Navbar />
             <div className="dashboard-page">
-              <Outlet context={{ user }} />
+              {isPageLoading ? <Loading /> : <Outlet context={{ user }} />}
             </div>
           </div>
         </main>
